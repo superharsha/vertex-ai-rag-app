@@ -7,7 +7,7 @@
 
 ## ✅ **What's Ready**
 - ✅ **GitHub Repository**: https://github.com/superharsha/vertex-ai-rag-app.git
-- ✅ **Service Account**: `vertex-rag-streamlit@vpc-host-nonprod-kk186-dr143.iam.gserviceaccount.com`
+- ✅ **Service Account**: `YOUR_SERVICE_ACCOUNT@YOUR_PROJECT_ID.iam.gserviceaccount.com`
 - ✅ **All Files**: Standalone project with all RAG components
 - ✅ **Local Testing**: App works locally on port 8502
 
@@ -33,13 +33,13 @@ streamlit run streamlit_standalone.py --server.port 8502
 2. **Connect**: GitHub account
 3. **Select**: `vertex-ai-rag-app` repository
 4. **Main file**: `streamlit_standalone.py`
-5. **Add secrets** (see STREAMLIT_CLOUD_DEPLOYMENT.md)
+5. **Add secrets**: Configure service account credentials in Streamlit Cloud secrets
 
 ## 📁 **Key Files**
 - `streamlit_standalone.py` - **Main app for Streamlit Cloud**
 - `fastapi_vertex_rag.py` - FastAPI backend
 - `requirements.txt` - Dependencies for Streamlit Cloud
-- `STREAMLIT_CLOUD_DEPLOYMENT.md` - **Complete deployment guide with credentials**
+- `README_DEPLOYMENT.md` - **Deployment guide template**
 
 ## 🎯 **Live App URL**
 After deployment: `https://vertex-ai-rag-app-[random-id].streamlit.app`
@@ -51,5 +51,10 @@ After deployment: `https://vertex-ai-rag-app-[random-id].streamlit.app`
 - ✅ **Auto GCS Buckets**: Automatic cloud storage
 - ✅ **Real-time RAG**: Instant document analysis
 
+## 🔒 **Security Notes**
+- Never commit private keys or credentials to git
+- Use Streamlit Cloud secrets for sensitive configuration
+- Configure service account with minimal required permissions
+
 ---
-*Ready to deploy! All credentials and setup are complete.* 
+*Ready to deploy! Set up your credentials securely before deployment.* 

@@ -1,34 +1,51 @@
-# 🚀 Streamlit Cloud Deployment Files
+# 🚀 Streamlit Cloud Deployment Guide
 
-## Files to Upload to GitHub Repository:
+## Prerequisites
 
-1. **streamlit_standalone.py** - Main application file
-2. **requirements.txt** - Dependencies (rename from requirements_streamlit_cloud.txt)
-3. **README.md** - This file
+1. **GitHub Account** - Your code must be in a GitHub repository
+2. **Google Cloud Project** - With Vertex AI API enabled
+3. **Service Account** - Create one with appropriate permissions
 
-## Streamlit Cloud Configuration:
+## 📋 Environment Variables Needed
 
-### Required Secrets:
-```toml
-PROJECT_ID = "vpc-host-nonprod-kk186-dr143"
-
-[gcp_service_account]
-type = "service_account"
-project_id = "vpc-host-nonprod-kk186-dr143"
-private_key_id = "YOUR_PRIVATE_KEY_ID"
-private_key = "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n"
-client_email = "vertex-rag-service@vpc-host-nonprod-kk186-dr143.iam.gserviceaccount.com"
-client_id = "YOUR_CLIENT_ID"
-auth_uri = "https://accounts.google.com/o/oauth2/auth"
-token_uri = "https://oauth2.googleapis.com/token"
-auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
-client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/vertex-rag-service%40vpc-host-nonprod-kk186-dr143.iam.gserviceaccount.com"
+```bash
+PROJECT_ID = "YOUR_PROJECT_ID"
 ```
 
-## Deployment Steps:
+## 🔑 Service Account Configuration
 
-1. Create GitHub repository
-2. Upload the 3 files above
-3. Deploy on Streamlit Cloud
-4. Add secrets in Streamlit Cloud settings
-5. Done! 🎉 
+Create a service account JSON with these fields:
+```json
+{
+  "type": "service_account",
+  "project_id": "YOUR_PROJECT_ID",
+  "private_key_id": "YOUR_PRIVATE_KEY_ID",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n",
+  "client_email": "YOUR_SERVICE_ACCOUNT@YOUR_PROJECT_ID.iam.gserviceaccount.com",
+  "client_id": "YOUR_CLIENT_ID",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/YOUR_SERVICE_ACCOUNT%40YOUR_PROJECT_ID.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
+```
+
+## 🔒 Security Notes
+
+- **NEVER** commit private keys to git repositories
+- Use environment variables or secrets management
+- Rotate keys regularly
+- Grant minimal required permissions
+
+## 📝 Deployment Steps
+
+1. Create GitHub repository with your code
+2. Go to https://share.streamlit.io/
+3. Connect your repository 
+4. Set main file: `streamlit_standalone.py`
+5. Add secrets in Streamlit Cloud settings (NOT in code)
+6. Deploy the application
+
+---
+*Remember: Keep your credentials secure and never expose them publicly!* 
