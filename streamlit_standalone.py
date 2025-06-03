@@ -25,19 +25,13 @@ import logging
 # Google Cloud imports
 try:
     import vertexai
-    # Try importing RAG from preview first, then main module
-    try:
-        from vertexai.preview import rag
-    except ImportError:
-        from vertexai import rag
-    
+    from vertexai import rag
     from vertexai.generative_models import GenerativeModel, Tool
     from google.cloud import storage
     from google.cloud.exceptions import NotFound, Conflict
     GOOGLE_CLOUD_AVAILABLE = True
-except ImportError as e:
+except ImportError:
     GOOGLE_CLOUD_AVAILABLE = False
-    IMPORT_ERROR_MESSAGE = f"Google Cloud libraries not available: {str(e)}"
 
 # Document processing imports
 try:
@@ -133,9 +127,18 @@ class VertexAIRAGManager:
     def create_or_get_corpus(self, display_name: str = "streamlit-rag-corpus") -> tuple[bool, str]:
         """Create or get existing RAG corpus"""
         try:
-            # Try to create a new corpus with simplified configuration
+            # Try to create a new corpus
+            embedding_model_config = rag.RagEmbeddingModelConfig(
+                vertex_prediction_endpoint=rag.VertexPredictionEndpoint(
+                    publisher_model="publishers/google/models/text-embedding-005"
+                )
+            )
+            
             self.corpus = rag.create_corpus(
-                display_name=f"{display_name}-{uuid.uuid4().hex[:8]}"
+                display_name=f"{display_name}-{uuid.uuid4().hex[:8]}",
+                backend_config=rag.RagVectorDbConfig(
+                    rag_embedding_model_config=embedding_model_config
+                ),
             )
             return True, f"Created corpus: {self.corpus.name}"
         except Exception as e:
@@ -161,7 +164,14 @@ class VertexAIRAGManager:
         try:
             rag.import_files(
                 self.corpus.name,
-                [gcs_uri]
+                [gcs_uri],
+                transformation_config=rag.TransformationConfig(
+                    chunking_config=rag.ChunkingConfig(
+                        chunk_size=512,
+                        chunk_overlap=100,
+                    ),
+                ),
+                max_embedding_requests_per_min=1000,
             )
             return True, f"Document imported successfully: {gcs_uri}"
         except Exception as e:
@@ -173,12 +183,13 @@ class VertexAIRAGManager:
             if not self.corpus:
                 return False, "No corpus available. Please upload documents first."
             
-            # Create RAG tool with simplified configuration
+            # Create RAG tool
             retrieval = rag.Retrieval(
                 source=rag.VertexRagStore(
                     rag_resources=[rag.RagResource(rag_corpus=self.corpus.name)],
                     rag_retrieval_config=rag.RagRetrievalConfig(
-                        top_k=top_k
+                        top_k=top_k,
+                        filter=rag.Filter(vector_distance_threshold=0.5),
                     )
                 ),
             )
@@ -279,8 +290,7 @@ def main():
     
     # Check if required libraries are available
     if not GOOGLE_CLOUD_AVAILABLE:
-        st.error(f"⚠️ {IMPORT_ERROR_MESSAGE}")
-        st.info("📝 **Troubleshooting:**\n- Install required dependencies: `pip install google-cloud-aiplatform vertexai`\n- Check that your requirements.txt includes the Google Cloud libraries")
+        st.error("⚠️ Google Cloud libraries not installed. Please install requirements.")
         st.stop()
     
     # Setup credentials
