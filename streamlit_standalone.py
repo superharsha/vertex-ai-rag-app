@@ -23,15 +23,11 @@ from typing import List, Dict, Any
 import logging
 
 # Google Cloud imports
-try:
-    import vertexai
-    from vertexai import rag
-    from vertexai.generative_models import GenerativeModel, Tool
-    from google.cloud import storage
-    from google.cloud.exceptions import NotFound, Conflict
-    GOOGLE_CLOUD_AVAILABLE = True
-except ImportError:
-    GOOGLE_CLOUD_AVAILABLE = False
+import vertexai
+from vertexai import rag
+from vertexai.generative_models import GenerativeModel, Tool
+from google.cloud import storage
+from google.cloud.exceptions import NotFound, Conflict
 
 # Document processing imports
 try:
@@ -287,11 +283,6 @@ def main():
         <p>Upload documents and query them using Google's Vertex AI</p>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Check if required libraries are available
-    if not GOOGLE_CLOUD_AVAILABLE:
-        st.error("⚠️ Google Cloud libraries not installed. Please install requirements.")
-        st.stop()
     
     # Setup credentials
     creds_success, creds_msg = setup_google_credentials()
