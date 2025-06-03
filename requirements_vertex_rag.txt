@@ -1,0 +1,31 @@
+# Core FastAPI and Streamlit
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+streamlit>=1.28.0
+
+# Google Cloud and Vertex AI
+google-cloud-aiplatform>=1.38.0
+google-cloud-storage>=2.10.0
+google-auth>=2.23.0
+google-auth-oauthlib>=1.0.0
+google-auth-httplib2>=0.1.1
+
+# Document processing
+PyPDF2>=3.0.1
+pdfplumber>=0.9.0
+python-docx>=0.8.11
+python-multipart>=0.0.6
+
+# Data handling and utilities
+pandas>=2.1.0
+numpy>=1.24.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# FastAPI dependencies
+pydantic>=2.4.0
+python-jose[cryptography]>=3.3.0
+
+# Additional utilities
+aiofiles>=23.2.1
+asyncio-throttle>=1.0.2 

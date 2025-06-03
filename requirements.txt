@@ -1,0 +1,11 @@
+streamlit>=1.35.0
+google-cloud-aiplatform>=1.60.0
+google-cloud-storage>=2.10.0
+google-auth>=2.22.0
+google-auth-oauthlib>=1.0.0
+google-auth-httplib2>=0.1.0
+vertexai>=1.60.0
+PyPDF2>=3.0.1
+python-docx>=0.8.11
+protobuf>=4.21.0
+grpcio>=1.54.0 

@@ -1,0 +1,70 @@
+🚀 Starting Vertex AI RAG API with Auto Bucket Creation
+📋 Configuration:
+  • Project ID: vpc-host-nonprod-kk186-dr143
+  • Location: us-central1
+  • GCS Bucket: vpc-host-nonprod-kk186-dr143-vertex-rag-docs
+  • Generation Model: gemini-2.0-flash-001
+  • Supported File Types: PDF, DOCX, TXT, MD
+
+🪣 Will create bucket 'vpc-host-nonprod-kk186-dr143-vertex-rag-docs' if it doesn't exist
+INFO:     Started server process [83162]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:54389 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54394 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54435 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54442 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54445 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54451 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54453 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54458 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54460 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54466 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54468 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54473 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54476 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54482 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54491 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54497 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54499 - "GET /status HTTP/1.1" 200 OK
+INFO:__main__:Successfully uploaded HealthSync API Documentation.docx to gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_084913_HealthSync API Documentation.docx
+INFO:__main__:Successfully imported HealthSync API Documentation.docx to corpus
+INFO:__main__:Successfully uploaded HealthSync Market Research Report.pdf to gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_084933_HealthSync Market Research Report.pdf
+INFO:__main__:Successfully imported HealthSync Market Research Report.pdf to corpus
+INFO:__main__:Successfully uploaded HealthSync Mid Project Check in Meeting Notes.docx to gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_084948_HealthSync Mid Project Check in Meeting Notes.docx
+INFO:__main__:Successfully imported HealthSync Mid Project Check in Meeting Notes.docx to corpus
+INFO:__main__:Successfully uploaded HealthSync Project Charter.docx to gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_084954_HealthSync Project Charter.docx
+INFO:__main__:Successfully imported HealthSync Project Charter.docx to corpus
+INFO:__main__:Successfully uploaded HealthSync Requirements Meeting Notes.docx to gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_085000_HealthSync Requirements Meeting Notes.docx
+INFO:__main__:Successfully imported HealthSync Requirements Meeting Notes.docx to corpus
+✅ Created RAG corpus: projects/315883473892/locations/us-central1/ragCorpora/7493989779944505344
+📄 Importing document to corpus: gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_084913_HealthSync API Documentation.docx
+✅ Successfully imported gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_084913_HealthSync API Documentation.docx
+📄 Importing document to corpus: gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_084933_HealthSync Market Research Report.pdf
+✅ Successfully imported gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_084933_HealthSync Market Research Report.pdf
+📄 Importing document to corpus: gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_084948_HealthSync Mid Project Check in Meeting Notes.docx
+✅ Successfully imported gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_084948_HealthSync Mid Project Check in Meeting Notes.docx
+📄 Importing document to corpus: gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_084954_HealthSync Project Charter.docx
+✅ Successfully imported gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_084954_HealthSync Project Charter.docx
+📄 Importing document to corpus: gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_085000_HealthSync Requirements Meeting Notes.docx
+✅ Successfully imported gs://vpc-host-nonprod-kk186-dr143-vertex-rag-docs/documents/20250603_085000_HealthSync Requirements Meeting Notes.docx
+INFO:     127.0.0.1:54505 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54547 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54553 - "GET /corpus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54555 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54557 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54607 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54613 - "GET /corpus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54615 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54617 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54619 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54624 - "GET /corpus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54626 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54628 - "GET /documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54630 - "GET /status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54635 - "GET /corpus HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54637 - "GET /documents HTTP/1.1" 200 OK
+🔍 Performing RAG query: Tell me about this project 
+INFO:     127.0.0.1:54639 - "POST /query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54645 - "GET /documents HTTP/1.1" 200 OK
