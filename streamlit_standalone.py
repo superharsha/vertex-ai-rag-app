@@ -25,13 +25,26 @@ import logging
 # Google Cloud imports
 try:
     import vertexai
-    from vertexai import rag
+    # Try primary RAG import path
+    try:
+        from vertexai import rag
+    except ImportError:
+        # Try alternative import paths for newer versions
+        try:
+            from vertexai.preview import rag
+        except ImportError:
+            from google.cloud import aiplatform
+            # Use alternative approach if RAG not available
+            rag = None
+    
     from vertexai.generative_models import GenerativeModel, Tool
     from google.cloud import storage
     from google.cloud.exceptions import NotFound, Conflict
     GOOGLE_CLOUD_AVAILABLE = True
+    RAG_AVAILABLE = rag is not None
 except ImportError as e:
     GOOGLE_CLOUD_AVAILABLE = False
+    RAG_AVAILABLE = False
     IMPORT_ERROR_MESSAGE = f"Google Cloud libraries not available: {str(e)}"
 
 # Document processing imports
@@ -292,6 +305,11 @@ def main():
     # Check if required libraries are available
     if not GOOGLE_CLOUD_AVAILABLE:
         st.error(IMPORT_ERROR_MESSAGE)
+        st.stop()
+    
+    if not RAG_AVAILABLE:
+        st.error("⚠️ Vertex AI RAG functionality not available. Please ensure you have the latest version of the vertexai library.")
+        st.info("📝 **Troubleshooting:**\n- Make sure you're using vertexai>=1.70.0\n- RAG might be in preview - check Google Cloud documentation")
         st.stop()
     
     # Setup credentials
