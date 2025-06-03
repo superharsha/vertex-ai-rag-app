@@ -5,15 +5,6 @@ Ready for Streamlit Cloud deployment
 """
 
 import streamlit as st
-
-# Page config - MUST be first Streamlit command
-st.set_page_config(
-    page_title="Vertex AI RAG System",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 import os
 import json
 import uuid
@@ -25,27 +16,14 @@ import logging
 # Google Cloud imports
 try:
     import vertexai
-    # Try primary RAG import path
-    try:
-        from vertexai import rag
-    except ImportError:
-        # Try alternative import paths for newer versions
-        try:
-            from vertexai.preview import rag
-        except ImportError:
-            from google.cloud import aiplatform
-            # Use alternative approach if RAG not available
-            rag = None
-    
+    from vertexai import rag
     from vertexai.generative_models import GenerativeModel, Tool
     from google.cloud import storage
     from google.cloud.exceptions import NotFound, Conflict
     GOOGLE_CLOUD_AVAILABLE = True
-    RAG_AVAILABLE = rag is not None
-except ImportError as e:
+except ImportError:
     GOOGLE_CLOUD_AVAILABLE = False
-    RAG_AVAILABLE = False
-    IMPORT_ERROR_MESSAGE = f"Google Cloud libraries not available: {str(e)}"
+    st.error("Google Cloud libraries not available. Please install required dependencies.")
 
 # Document processing imports
 try:
@@ -58,6 +36,14 @@ except ImportError:
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Page config
+st.set_page_config(
+    page_title="Vertex AI RAG System",
+    page_icon="🤖",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # Custom CSS
 st.markdown("""
@@ -304,12 +290,7 @@ def main():
     
     # Check if required libraries are available
     if not GOOGLE_CLOUD_AVAILABLE:
-        st.error(IMPORT_ERROR_MESSAGE)
-        st.stop()
-    
-    if not RAG_AVAILABLE:
-        st.error("⚠️ Vertex AI RAG functionality not available. Please ensure you have the latest version of the vertexai library.")
-        st.info("📝 **Troubleshooting:**\n- Make sure you're using vertexai>=1.70.0\n- RAG might be in preview - check Google Cloud documentation")
+        st.error("⚠️ Google Cloud libraries not installed. Please install requirements.")
         st.stop()
     
     # Setup credentials
