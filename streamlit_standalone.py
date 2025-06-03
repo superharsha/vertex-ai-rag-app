@@ -133,18 +133,9 @@ class VertexAIRAGManager:
     def create_or_get_corpus(self, display_name: str = "streamlit-rag-corpus") -> tuple[bool, str]:
         """Create or get existing RAG corpus"""
         try:
-            # Try to create a new corpus
-            embedding_model_config = rag.RagEmbeddingModelConfig(
-                vertex_prediction_endpoint=rag.VertexPredictionEndpoint(
-                    publisher_model="publishers/google/models/text-embedding-005"
-                )
-            )
-            
+            # Try to create a new corpus with simplified configuration
             self.corpus = rag.create_corpus(
-                display_name=f"{display_name}-{uuid.uuid4().hex[:8]}",
-                backend_config=rag.RagVectorDbConfig(
-                    rag_embedding_model_config=embedding_model_config
-                ),
+                display_name=f"{display_name}-{uuid.uuid4().hex[:8]}"
             )
             return True, f"Created corpus: {self.corpus.name}"
         except Exception as e:
@@ -170,14 +161,7 @@ class VertexAIRAGManager:
         try:
             rag.import_files(
                 self.corpus.name,
-                [gcs_uri],
-                transformation_config=rag.TransformationConfig(
-                    chunking_config=rag.ChunkingConfig(
-                        chunk_size=512,
-                        chunk_overlap=100,
-                    ),
-                ),
-                max_embedding_requests_per_min=1000,
+                [gcs_uri]
             )
             return True, f"Document imported successfully: {gcs_uri}"
         except Exception as e:
@@ -189,13 +173,12 @@ class VertexAIRAGManager:
             if not self.corpus:
                 return False, "No corpus available. Please upload documents first."
             
-            # Create RAG tool
+            # Create RAG tool with simplified configuration
             retrieval = rag.Retrieval(
                 source=rag.VertexRagStore(
                     rag_resources=[rag.RagResource(rag_corpus=self.corpus.name)],
                     rag_retrieval_config=rag.RagRetrievalConfig(
-                        top_k=top_k,
-                        filter=rag.Filter(vector_distance_threshold=0.5),
+                        top_k=top_k
                     )
                 ),
             )
