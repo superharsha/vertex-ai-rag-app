@@ -1,24 +1,42 @@
+# Core Streamlit and web framework
 streamlit>=1.35.0
-google-cloud-aiplatform>=1.70.0
-google-cloud-storage>=2.18.0
-google-auth>=2.35.0
-google-auth-oauthlib>=1.2.0
-google-auth-httplib2>=0.2.0
-vertexai>=1.70.0
-google-cloud-discoveryengine>=0.12.0
+toml>=0.10.1
+
+# Google Cloud Libraries
+google-cloud-aiplatform>=1.60.0
+google-cloud-storage>=2.10.0
+google-cloud-core>=2.3.0
+google-auth>=2.14.1
+google-auth-oauthlib>=1.0.0
+google-auth-httplib2>=0.1.0
+google-api-core>=1.34.1
+googleapis-common-protos>=1.56.2
+google-resumable-media>=2.7.2
+
+# Vertex AI
+vertexai>=1.60.0
+
+# Document processing
 PyPDF2>=3.0.1
 python-docx>=0.8.11
-protobuf>=4.25.0,<6.0.0
-grpcio>=1.65.0
-google-api-core>=2.20.0
-google-cloud-core>=2.4.0
-google-resumable-media>=2.7.0
-googleapis-common-protos>=1.65.0
-requests>=2.32.0
-urllib3>=2.2.0
-certifi>=2024.0.0
-six>=1.16.0
-cachetools>=5.5.0
-pyasn1>=0.6.0
-pyasn1-modules>=0.4.0
-rsa>=4.9.0 
+
+# Core Python libraries that may be needed
+protobuf>=3.20,<7
+grpcio>=1.33.2
+grpcio-status>=1.33.2
+requests>=2.27.0
+numpy>=1.20.0
+pandas>=1.4.0
+
+# Additional dependencies for Google Cloud integration
+cachetools>=4.0
+rsa>=3.1.4
+pyasn1>=0.4.6
+pyasn1-modules>=0.2.1
+six>=1.15.0
+certifi>=2021.5.25
+urllib3>=1.21.1,<3
+charset-normalizer>=2.0.0
+
+# JSON and data handling
+typing-extensions>=4.0.0 
