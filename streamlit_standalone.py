@@ -5,6 +5,15 @@ Ready for Streamlit Cloud deployment
 """
 
 import streamlit as st
+
+# Page config - MUST be first Streamlit command
+st.set_page_config(
+    page_title="Vertex AI RAG System",
+    page_icon="🤖",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 import os
 import json
 import uuid
@@ -21,9 +30,9 @@ try:
     from google.cloud import storage
     from google.cloud.exceptions import NotFound, Conflict
     GOOGLE_CLOUD_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     GOOGLE_CLOUD_AVAILABLE = False
-    st.error("Google Cloud libraries not available. Please install required dependencies.")
+    IMPORT_ERROR_MESSAGE = f"Google Cloud libraries not available: {str(e)}"
 
 # Document processing imports
 try:
@@ -36,14 +45,6 @@ except ImportError:
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Page config
-st.set_page_config(
-    page_title="Vertex AI RAG System",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # Custom CSS
 st.markdown("""
@@ -290,7 +291,8 @@ def main():
     
     # Check if required libraries are available
     if not GOOGLE_CLOUD_AVAILABLE:
-        st.error("⚠️ Google Cloud libraries not installed. Please install requirements.")
+        st.error(f"⚠️ {IMPORT_ERROR_MESSAGE}")
+        st.info("📝 **Troubleshooting:**\n- Install required dependencies: `pip install google-cloud-aiplatform vertexai`\n- Check that your requirements.txt includes the Google Cloud libraries")
         st.stop()
     
     # Setup credentials
