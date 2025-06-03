@@ -25,7 +25,12 @@ import logging
 # Google Cloud imports
 try:
     import vertexai
-    from vertexai import rag
+    # Try importing RAG from preview first, then main module
+    try:
+        from vertexai.preview import rag
+    except ImportError:
+        from vertexai import rag
+    
     from vertexai.generative_models import GenerativeModel, Tool
     from google.cloud import storage
     from google.cloud.exceptions import NotFound, Conflict
