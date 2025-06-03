@@ -30,9 +30,9 @@ try:
     from google.cloud import storage
     from google.cloud.exceptions import NotFound, Conflict
     GOOGLE_CLOUD_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     GOOGLE_CLOUD_AVAILABLE = False
-    st.error("Google Cloud libraries not available. Please install required dependencies.")
+    IMPORT_ERROR_MESSAGE = f"Google Cloud libraries not available: {str(e)}"
 
 # Document processing imports
 try:
@@ -291,7 +291,7 @@ def main():
     
     # Check if required libraries are available
     if not GOOGLE_CLOUD_AVAILABLE:
-        st.error("⚠️ Google Cloud libraries not installed. Please install requirements.")
+        st.error(IMPORT_ERROR_MESSAGE)
         st.stop()
     
     # Setup credentials
