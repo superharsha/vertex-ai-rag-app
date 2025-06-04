@@ -367,6 +367,9 @@ def main():
         search_button = st.button("🔍 Search Documents", type="primary", use_container_width=True)
     
     if search_button and query.strip():
+        # Initialize response_time outside the spinner block
+        response_time = None
+        
         with st.spinner("🧠 Analyzing documents..."):
             start_time = time.time()
             
@@ -387,24 +390,26 @@ def main():
             
             end_time = time.time()
             response_time = round((end_time - start_time) * 1000, 3)
+        
+        # Response handling outside spinner block
+        if success:
+            st.markdown("""
+            <div class="response-container">
+                <h3 style="margin-top: 0; color: #28a745;">📋 Response</h3>
+            </div>
+            """, unsafe_allow_html=True)
             
-            if success:
-                st.markdown("""
-                <div class="response-container">
-                    <h3 style="margin-top: 0; color: #28a745;">📋 Response</h3>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.markdown(response)
-                
-                # Timestamp and response time
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.caption(f"Query executed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} using {query_method}")
-                with col2:
+            st.markdown(response)
+            
+            # Timestamp and response time
+            col1, col2 = st.columns(2)
+            with col1:
+                st.caption(f"Query executed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} using {query_method}")
+            with col2:
+                if response_time is not None:
                     st.caption(f"⚡ Response time: {response_time} ms")
-            else:
-                st.error(f"❌ {response}")
+        else:
+            st.error(f"❌ {response}")
     
     elif search_button:
         st.warning("⚠️ Please enter a question to search.")
