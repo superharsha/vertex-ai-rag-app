@@ -97,13 +97,14 @@ st.markdown("""
 # Constants
 DOCUMENTS_FOLDER = "/Users/sr/Downloads/All Files"
 CORPUS_NAME = "knowledge-base"
-PROJECT_ID = st.secrets.get("PROJECT_ID", "")
+PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT") or st.secrets.get("PROJECT_ID", "")
 LOCATION = "us-central1"
 GENERATION_MODEL = "gemini-2.0-flash-001"
 
 def setup_google_credentials():
-    """Setup Google Cloud credentials from Streamlit secrets"""
+    """Setup Google Cloud credentials from Streamlit secrets or Application Default Credentials"""
     try:
+        # First try Streamlit secrets (for cloud deployment)
         if hasattr(st, 'secrets') and "service_account" in st.secrets:
             import json
             import os
@@ -118,9 +119,20 @@ def setup_google_credentials():
             with open("/tmp/service_account.json", "w") as f:
                 json.dump(creds_dict, f)
             
-            return True, "Credentials configured successfully"
+            return True, "Credentials configured from Streamlit secrets"
+        
+        # Fall back to Application Default Credentials (for local development)
         else:
-            return False, "No service account credentials found in secrets"
+            try:
+                from google.auth import default
+                credentials, project = default()
+                if credentials and project:
+                    return True, f"Using Application Default Credentials for project: {project}"
+                else:
+                    return False, "No valid credentials found"
+            except Exception as e:
+                return False, f"Application Default Credentials not available. Please run: gcloud auth application-default login"
+                
     except Exception as e:
         return False, f"Failed to setup credentials: {str(e)}"
 
