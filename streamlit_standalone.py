@@ -5,29 +5,25 @@ Ready for Streamlit Cloud deployment
 """
 
 import streamlit as st
-import logging
-import tempfile
-import uuid
 import os
-import glob
+import json
+import uuid
+import tempfile
 from datetime import datetime
-from typing import Tuple
-import time
-
-# Set page config first
-st.set_page_config(
-    page_title="🤖 Document Query System",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+from typing import List, Dict, Any
+import logging
 
 # Google Cloud imports
-import vertexai
-from vertexai import rag
-from vertexai.generative_models import GenerativeModel, Tool
-from google.cloud import storage
-from google.cloud.exceptions import NotFound, Conflict
+try:
+    import vertexai
+    from vertexai import rag
+    from vertexai.generative_models import GenerativeModel, Tool
+    from google.cloud import storage
+    from google.cloud.exceptions import NotFound, Conflict
+    GOOGLE_CLOUD_AVAILABLE = True
+except ImportError:
+    GOOGLE_CLOUD_AVAILABLE = False
+    st.error("Google Cloud libraries not available. Please install required dependencies.")
 
 # Document processing imports
 try:
@@ -41,100 +37,182 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Page config
+st.set_page_config(
+    page_title="Vertex AI RAG System",
+    page_icon="🤖",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 # Custom CSS
 st.markdown("""
 <style>
 .main-header {
     background: linear-gradient(90deg, #1f4e79, #2e7bcf);
-    padding: 2rem;
-    border-radius: 15px;
+    padding: 1rem;
+    border-radius: 10px;
     color: white;
     margin-bottom: 2rem;
-    text-align: center;
 }
-.query-container {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 15px;
-    padding: 2rem;
-    margin: 2rem 0;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-.response-container {
-    background: white;
-    border-radius: 10px;
-    padding: 1.5rem;
-    margin: 1rem 0;
-    border-left: 4px solid #28a745;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-.status-indicator {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-weight: bold;
-    margin: 0.5rem 0;
-}
-.status-ready {
+.success-box {
     background-color: #d4edda;
-    color: #155724;
     border: 1px solid #c3e6cb;
+    border-radius: 5px;
+    padding: 10px;
+    margin: 10px 0;
 }
-.status-processing {
-    background-color: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeaa7;
+.error-box {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 5px;
+    padding: 10px;
+    margin: 10px 0;
 }
-.footer-stats {
-    background-color: #f8f9fa;
-    border-radius: 10px;
-    padding: 1rem;
-    margin-top: 2rem;
-    text-align: center;
+.info-box {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    border-radius: 5px;
+    padding: 10px;
+    margin: 10px 0;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Constants
-DOCUMENTS_FOLDER = "/Users/sr/Downloads/All Files"
-CORPUS_NAME = "knowledge-base"
-PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT") or st.secrets.get("PROJECT_ID", "")
-LOCATION = "us-central1"
-GENERATION_MODEL = "gemini-2.0-flash-001"
-
-def setup_google_credentials():
-    """Setup Google Cloud credentials from Streamlit secrets or Application Default Credentials"""
-    try:
-        # First try Streamlit secrets (for cloud deployment)
-        if hasattr(st, 'secrets') and "service_account" in st.secrets:
-            import json
-            import os
-            from google.oauth2 import service_account
+class VertexAIRAGManager:
+    def __init__(self):
+        self.project_id = None
+        self.location = None
+        self.bucket_name = None
+        self.generation_model = None
+        self.corpus = None
+        self.storage_client = None
+        self.initialized = False
+    
+    def initialize(self, project_id: str, location: str = "us-central1", 
+                  generation_model: str = "gemini-2.0-flash-001"):
+        """Initialize Vertex AI and GCS"""
+        try:
+            self.project_id = project_id
+            self.location = location
+            self.generation_model = generation_model
+            self.bucket_name = f"{project_id}-vertex-rag-docs"
             
-            # Create credentials from Streamlit secrets
-            creds_dict = dict(st.secrets["service_account"])
-            credentials = service_account.Credentials.from_service_account_info(creds_dict)
+            # Initialize Vertex AI
+            vertexai.init(project=project_id, location=location)
             
-            # Set environment variable for Google Cloud authentication
-            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/tmp/service_account.json"
-            with open("/tmp/service_account.json", "w") as f:
-                json.dump(creds_dict, f)
+            # Initialize Storage client
+            self.storage_client = storage.Client(project=project_id)
             
-            return True, "Credentials configured from Streamlit secrets"
-        
-        # Fall back to Application Default Credentials (for local development)
-        else:
-            try:
-                from google.auth import default
-                credentials, project = default()
-                if credentials and project:
-                    return True, f"Using Application Default Credentials for project: {project}"
-                else:
-                    return False, "No valid credentials found"
-            except Exception as e:
-                return False, f"Application Default Credentials not available. Please run: gcloud auth application-default login"
-                
-    except Exception as e:
-        return False, f"Failed to setup credentials: {str(e)}"
+            self.initialized = True
+            return True, "Vertex AI initialized successfully"
+        except Exception as e:
+            return False, f"Failed to initialize Vertex AI: {str(e)}"
+    
+    def create_bucket_if_not_exists(self) -> tuple[bool, str]:
+        """Create GCS bucket if it doesn't exist"""
+        try:
+            bucket = self.storage_client.bucket(self.bucket_name)
+            if not bucket.exists():
+                bucket = self.storage_client.create_bucket(
+                    self.bucket_name, 
+                    location=self.location
+                )
+                return True, f"Created bucket: {self.bucket_name}"
+            else:
+                return True, f"Bucket already exists: {self.bucket_name}"
+        except Exception as e:
+            return False, f"Failed to create bucket: {str(e)}"
+    
+    def create_or_get_corpus(self, display_name: str = "streamlit-rag-corpus") -> tuple[bool, str]:
+        """Create or get existing RAG corpus"""
+        try:
+            # Try to create a new corpus
+            embedding_model_config = rag.RagEmbeddingModelConfig(
+                vertex_prediction_endpoint=rag.VertexPredictionEndpoint(
+                    publisher_model="publishers/google/models/text-embedding-005"
+                )
+            )
+            
+            self.corpus = rag.create_corpus(
+                display_name=f"{display_name}-{uuid.uuid4().hex[:8]}",
+                backend_config=rag.RagVectorDbConfig(
+                    rag_embedding_model_config=embedding_model_config
+                ),
+            )
+            return True, f"Created corpus: {self.corpus.name}"
+        except Exception as e:
+            return False, f"Failed to create corpus: {str(e)}"
+    
+    def upload_file_to_gcs(self, file_content, filename: str, content_type: str) -> tuple[bool, str]:
+        """Upload file to GCS bucket"""
+        try:
+            bucket = self.storage_client.bucket(self.bucket_name)
+            blob_name = f"{uuid.uuid4().hex}_{filename}"
+            blob = bucket.blob(blob_name)
+            
+            # Upload file content
+            blob.upload_from_string(file_content, content_type=content_type)
+            
+            gcs_uri = f"gs://{self.bucket_name}/{blob_name}"
+            return True, gcs_uri
+        except Exception as e:
+            return False, f"Failed to upload file: {str(e)}"
+    
+    def import_document_to_corpus(self, gcs_uri: str) -> tuple[bool, str]:
+        """Import document from GCS to RAG corpus"""
+        try:
+            rag.import_files(
+                self.corpus.name,
+                [gcs_uri],
+                transformation_config=rag.TransformationConfig(
+                    chunking_config=rag.ChunkingConfig(
+                        chunk_size=512,
+                        chunk_overlap=100,
+                    ),
+                ),
+                max_embedding_requests_per_min=1000,
+            )
+            return True, f"Document imported successfully: {gcs_uri}"
+        except Exception as e:
+            return False, f"Failed to import document: {str(e)}"
+    
+    def query_documents(self, query: str, top_k: int = 3, system_prompt: str = None) -> tuple[bool, str]:
+        """Query the RAG corpus with optional system prompt"""
+        try:
+            if not self.corpus:
+                return False, "No corpus available. Please upload documents first."
+            
+            # Create RAG tool
+            retrieval = rag.Retrieval(
+                source=rag.VertexRagStore(
+                    rag_resources=[rag.RagResource(rag_corpus=self.corpus.name)],
+                    rag_retrieval_config=rag.RagRetrievalConfig(
+                        top_k=top_k,
+                        filter=rag.Filter(vector_distance_threshold=0.5),
+                    )
+                ),
+            )
+            
+            rag_tool = Tool.from_retrieval(retrieval=retrieval)
+            
+            # Create model with optional system instruction
+            if system_prompt and system_prompt.strip():
+                model = GenerativeModel(
+                    model_name=self.generation_model,
+                    tools=[rag_tool],
+                    system_instruction=system_prompt.strip()
+                )
+            else:
+                model = GenerativeModel(
+                    model_name=self.generation_model,
+                    tools=[rag_tool]
+                )
+            
+            response = model.generate_content(query)
+            return True, response.text
+        except Exception as e:
+            return False, f"Query failed: {str(e)}"
 
 def extract_text_from_pdf(file_content) -> str:
     """Extract text from PDF file"""
@@ -144,14 +222,13 @@ def extract_text_from_pdf(file_content) -> str:
             tmp_file.flush()
             
             with open(tmp_file.name, 'rb') as file:
-                reader = PyPDF2.PdfReader(file)
+                pdf_reader = PyPDF2.PdfReader(file)
                 text = ""
-                for page_num in range(len(reader.pages)):
-                    page = reader.pages[page_num]
+                for page in pdf_reader.pages:
                     text += page.extract_text() + "\n"
-                
-                os.unlink(tmp_file.name)
-                return text
+            
+            os.unlink(tmp_file.name)
+            return text
     except Exception as e:
         return f"Error extracting PDF text: {str(e)}"
 
@@ -163,272 +240,309 @@ def extract_text_from_docx(file_content) -> str:
             tmp_file.flush()
             
             doc = docx.Document(tmp_file.name)
-            text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+            text = ""
+            for paragraph in doc.paragraphs:
+                text += paragraph.text + "\n"
             
             os.unlink(tmp_file.name)
             return text
     except Exception as e:
         return f"Error extracting DOCX text: {str(e)}"
 
-@st.cache_data(show_spinner="🚀 Initializing document processing system...")
-def initialize_system():
-    """Initialize the entire RAG system and process all documents"""
-    
-    # Setup credentials
-    creds_success, creds_msg = setup_google_credentials()
-    if not creds_success:
-        st.error(f"❌ Authentication failed: {creds_msg}")
-        st.stop()
-    
-    if not PROJECT_ID:
-        st.error("❌ PROJECT_ID not found in secrets")
-        st.stop()
-    
-    # Initialize Vertex AI
+def setup_google_credentials():
+    """Setup Google Cloud credentials from Streamlit secrets or ADC"""
     try:
-        vertexai.init(project=PROJECT_ID, location=LOCATION)
-        storage_client = storage.Client(project=PROJECT_ID)
-        bucket_name = f"{PROJECT_ID}-knowledge-base-docs"
-    except Exception as e:
-        st.error(f"❌ Failed to initialize Google Cloud: {str(e)}")
-        st.stop()
-    
-    # Create/get bucket
-    try:
-        bucket = storage_client.bucket(bucket_name)
-        if not bucket.exists():
-            bucket = storage_client.create_bucket(bucket_name, location=LOCATION)
-    except Exception as e:
-        st.error(f"❌ Failed to setup storage: {str(e)}")
-        st.stop()
-    
-    # Create corpus
-    try:
-        corpus_display_name = f"{CORPUS_NAME}-{uuid.uuid4().hex[:8]}"
-        corpus = rag.create_corpus(display_name=corpus_display_name)
-    except Exception as e:
-        st.error(f"❌ Failed to create knowledge base: {str(e)}")
-        st.stop()
-    
-    # Process documents
-    if not os.path.exists(DOCUMENTS_FOLDER):
-        st.error(f"❌ Documents folder not found: {DOCUMENTS_FOLDER}")
-        st.stop()
-    
-    # Get all files
-    file_patterns = ['*.pdf', '*.docx', '*.txt', '*.md']
-    all_files = []
-    for pattern in file_patterns:
-        all_files.extend(glob.glob(os.path.join(DOCUMENTS_FOLDER, pattern)))
-    
-    if not all_files:
-        st.error("❌ No documents found to process")
-        st.stop()
-    
-    processed_count = 0
-    failed_files = []
-    
-    # Process each file
-    for file_path in all_files:
-        try:
-            filename = os.path.basename(file_path)
-            blob_name = f"{uuid.uuid4().hex}_{filename}"
-            blob = bucket.blob(blob_name)
+        if "gcp_service_account" in st.secrets:
+            # Create credentials from Streamlit secrets (for cloud deployment)
+            service_account_info = dict(st.secrets["gcp_service_account"])
             
-            # Process file based on type
-            if file_path.lower().endswith('.pdf'):
-                if PDF_DOCX_AVAILABLE:
-                    with open(file_path, 'rb') as f:
-                        text_content = extract_text_from_pdf(f.read())
-                    blob.upload_from_string(text_content.encode('utf-8'), content_type="text/plain")
-                    blob_name = blob_name.replace('.pdf', '.txt')
-                else:
-                    failed_files.append(filename)
-                    continue
-            elif file_path.lower().endswith('.docx'):
-                if PDF_DOCX_AVAILABLE:
-                    with open(file_path, 'rb') as f:
-                        text_content = extract_text_from_docx(f.read())
-                    blob.upload_from_string(text_content.encode('utf-8'), content_type="text/plain")
-                    blob_name = blob_name.replace('.docx', '.txt')
-                else:
-                    failed_files.append(filename)
-                    continue
-            elif file_path.lower().endswith(('.txt', '.md')):
-                blob.upload_from_filename(file_path, content_type="text/plain")
-            else:
-                failed_files.append(filename)
-                continue
-            
-            # Import to corpus
-            gcs_uri = f"gs://{bucket_name}/{blob_name}"
-            rag.import_files(
-                corpus.name,
-                [gcs_uri],
-                max_embedding_requests_per_min=100,
-            )
-            processed_count += 1
-            
-        except Exception as e:
-            failed_files.append(f"{filename}: {str(e)}")
-            continue
-    
-    return {
-        'corpus': corpus,
-        'bucket_name': bucket_name,
-        'processed_count': processed_count,
-        'total_files': len(all_files),
-        'failed_files': failed_files
-    }
-
-def query_documents(corpus, query: str, top_k: int = 5, system_prompt: str = None) -> tuple[bool, str]:
-    """Query the RAG corpus"""
-    try:
-        # Create RAG tool
-        retrieval = rag.Retrieval(
-            source=rag.VertexRagStore(
-                rag_resources=[rag.RagResource(rag_corpus=corpus.name)],
-                rag_retrieval_config=rag.RagRetrievalConfig(top_k=top_k)
-            ),
-        )
-        
-        rag_tool = Tool.from_retrieval(retrieval=retrieval)
-        
-        # Create model with optional system instruction
-        if system_prompt and system_prompt.strip():
-            model = GenerativeModel(
-                model_name=GENERATION_MODEL,
-                tools=[rag_tool],
-                system_instruction=system_prompt.strip()
-            )
+            # Write to temporary file for Google Cloud SDK
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp_file:
+                json.dump(service_account_info, tmp_file)
+                tmp_file.flush()
+                
+                # Set environment variable
+                os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = tmp_file.name
+                return True, "Google Cloud credentials configured from secrets"
         else:
-            model = GenerativeModel(
-                model_name=GENERATION_MODEL,
-                tools=[rag_tool]
-            )
-        
-        response = model.generate_content(query)
-        return True, response.text
+            # For local testing, check if Application Default Credentials are available
+            try:
+                # Try to initialize a storage client to test credentials
+                from google.auth import default
+                credentials, project = default()
+                if credentials and project:
+                    return True, f"Using Application Default Credentials for project: {project}"
+                else:
+                    return False, "No valid credentials found"
+            except Exception as e:
+                return False, f"Application Default Credentials not available. Please run: gcloud auth application-default login"
     except Exception as e:
-        return False, f"Query failed: {str(e)}"
+        return False, f"Failed to setup credentials: {str(e)}"
 
 def main():
     # Header
     st.markdown("""
     <div class="main-header">
-        <h1>🤖 Document Query System</h1>
-        <p>Powered by Google Vertex AI • Ready to answer your questions</p>
+        <h1>🤖 Vertex AI RAG System</h1>
+        <p>Upload documents and query them using Google's Vertex AI</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Initialize system (cached)
-    system_info = initialize_system()
+    # Check if required libraries are available
+    if not GOOGLE_CLOUD_AVAILABLE:
+        st.error("⚠️ Google Cloud libraries not installed. Please install requirements.")
+        st.stop()
     
-    # Show system status
-    st.markdown(f"""
-    <div class="status-indicator status-ready">
-        ✅ System Ready • {system_info['processed_count']}/{system_info['total_files']} documents processed
-    </div>
-    """, unsafe_allow_html=True)
+    # Setup credentials
+    creds_success, creds_msg = setup_google_credentials()
+    if not creds_success:
+        st.error(f"❌ {creds_msg}")
+        st.info("Please configure Google Cloud service account in Streamlit secrets.")
+        st.stop()
     
-    # Main query interface
-    st.markdown("""
-    <div class="query-container">
-        <h2 style="margin-top: 0;">🔍 Ask Your Question</h2>
-        <p>Query your document collection using natural language</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Initialize session state
+    if 'rag_manager' not in st.session_state:
+        st.session_state.rag_manager = VertexAIRAGManager()
+        st.session_state.uploaded_files = []
+        st.session_state.corpus_created = False
     
-    # Query input
-    query = st.text_area(
-        "",
-        placeholder="What would you like to know about your documents?",
-        height=120,
-        label_visibility="collapsed"
+    # Sidebar configuration
+    with st.sidebar:
+        st.header("⚙️ Configuration")
+        
+        # Project configuration
+        project_id = st.text_input(
+            "Google Cloud Project ID",
+            value=st.secrets.get("PROJECT_ID", ""),
+            help="Your Google Cloud Project ID"
+        )
+        
+        location = st.selectbox(
+            "Location",
+            ["us-central1", "us-east1", "us-west1", "europe-west1", "asia-southeast1"],
+            index=0
+        )
+        
+        generation_model = st.selectbox(
+            "Generation Model",
+            ["gemini-2.0-flash-001", "gemini-2.5-flash-preview-05-20", "gemini-1.5-pro", "gemini-1.5-flash"],
+            index=0
+        )
+        
+        # Initialize button
+        if st.button("🚀 Initialize System", type="primary"):
+            if not project_id:
+                st.error("Please enter a Project ID")
+            else:
+                with st.spinner("Initializing Vertex AI..."):
+                    success, msg = st.session_state.rag_manager.initialize(
+                        project_id, location, generation_model
+                    )
+                    if success:
+                        st.success(msg)
+                        # Create bucket
+                        bucket_success, bucket_msg = st.session_state.rag_manager.create_bucket_if_not_exists()
+                        if bucket_success:
+                            st.success(bucket_msg)
+                        else:
+                            st.error(bucket_msg)
+                    else:
+                        st.error(msg)
+        
+        # System status
+        st.header("📊 System Status")
+        if st.session_state.rag_manager.initialized:
+            st.success("✅ System Initialized")
+            st.info(f"📂 Project: {st.session_state.rag_manager.project_id}")
+            st.info(f"🌍 Location: {st.session_state.rag_manager.location}")
+            st.info(f"🪣 Bucket: {st.session_state.rag_manager.bucket_name}")
+        else:
+            st.warning("⚠️ System Not Initialized")
+    
+    # Main content
+    if not st.session_state.rag_manager.initialized:
+        st.info("👈 Please initialize the system using the sidebar configuration.")
+        return
+    
+    # File upload section
+    st.header("📁 Document Upload")
+    
+    uploaded_files = st.file_uploader(
+        "Upload Documents (PDF, DOCX, TXT)",
+        type=['pdf', 'docx', 'txt'],
+        accept_multiple_files=True,
+        help="Upload one or more documents to add to the knowledge base"
     )
     
-    # Advanced settings
-    with st.expander("🎛️ Advanced Settings"):
-        col1, col2 = st.columns([2, 1])
+    if uploaded_files and st.button("📤 Upload Documents"):
+        # Create corpus if not exists
+        if not st.session_state.corpus_created:
+            with st.spinner("Creating RAG corpus..."):
+                corpus_success, corpus_msg = st.session_state.rag_manager.create_or_get_corpus()
+                if corpus_success:
+                    st.success(corpus_msg)
+                    st.session_state.corpus_created = True
+                else:
+                    st.error(corpus_msg)
+                    st.stop()
         
+        # Process each file
+        for uploaded_file in uploaded_files:
+            with st.spinner(f"Processing {uploaded_file.name}..."):
+                file_content = uploaded_file.read()
+                
+                # Determine content type and extract text if needed
+                if uploaded_file.type == "application/pdf":
+                    if PDF_DOCX_AVAILABLE:
+                        text_content = extract_text_from_pdf(file_content)
+                        content_to_upload = text_content.encode('utf-8')
+                        content_type = "text/plain"
+                        filename = uploaded_file.name.replace('.pdf', '.txt')
+                    else:
+                        st.error("PDF processing not available. Please install PyPDF2.")
+                        continue
+                elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+                    if PDF_DOCX_AVAILABLE:
+                        text_content = extract_text_from_docx(file_content)
+                        content_to_upload = text_content.encode('utf-8')
+                        content_type = "text/plain"
+                        filename = uploaded_file.name.replace('.docx', '.txt')
+                    else:
+                        st.error("DOCX processing not available. Please install python-docx.")
+                        continue
+                else:
+                    content_to_upload = file_content
+                    content_type = "text/plain"
+                    filename = uploaded_file.name
+                
+                # Upload to GCS
+                upload_success, gcs_uri_or_error = st.session_state.rag_manager.upload_file_to_gcs(
+                    content_to_upload, filename, content_type
+                )
+                
+                if upload_success:
+                    st.success(f"✅ Uploaded: {uploaded_file.name}")
+                    
+                    # Import to corpus
+                    import_success, import_msg = st.session_state.rag_manager.import_document_to_corpus(gcs_uri_or_error)
+                    if import_success:
+                        st.success(f"✅ Imported to RAG corpus: {uploaded_file.name}")
+                        st.session_state.uploaded_files.append({
+                            'name': uploaded_file.name,
+                            'gcs_uri': gcs_uri_or_error,
+                            'uploaded_at': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
+                    else:
+                        st.error(f"❌ {import_msg}")
+                else:
+                    st.error(f"❌ {gcs_uri_or_error}")
+    
+    # Query section
+    st.header("🔍 Query Documents")
+    
+    if st.session_state.uploaded_files:
+        # Query input
+        query = st.text_area(
+            "Enter your question:",
+            placeholder="Ask anything about your uploaded documents...",
+            height=100
+        )
+        
+        # System prompt section
+        st.subheader("🎯 System Prompt (Optional)")
+        
+        # Preset prompts
+        col1, col2 = st.columns([2, 1])
         with col1:
             preset_prompts = {
                 "Default": "",
-                "📊 Analytical Expert": "You are an analytical expert. Provide detailed, structured responses with clear reasoning and evidence from the documents. Include specific examples and data points when available.",
-                "📋 Executive Summary": "You are an executive assistant. Provide concise, high-level summaries focusing on key business insights, decisions, and strategic implications from the documents.",
-                "🔧 Technical Specialist": "You are a technical specialist. Focus on technical details, specifications, processes, and provide in-depth technical explanations based on the document content.",
-                "📅 Project Manager": "You are a project management expert. Focus on timelines, deliverables, risks, resources, and project-related information from the documents.",
-                "💰 Financial Analyst": "You are a financial analyst. Focus on costs, budgets, financial implications, ROI, and economic factors mentioned in the documents.",
-                "⚖️ Compliance Officer": "You are a compliance expert. Focus on regulations, standards, requirements, and compliance-related information from the documents."
+                "Analytical": "You are an analytical assistant. Provide detailed, structured responses with clear reasoning and evidence from the documents.",
+                "Concise": "You are a concise assistant. Provide brief, direct answers while staying accurate to the document content.",
+                "Technical Expert": "You are a technical expert. Focus on technical details, specifications, and provide in-depth explanations.",
+                "Summarizer": "You are a summarization expert. Extract and present key information in a well-organized summary format.",
+                "Q&A Assistant": "You are a helpful Q&A assistant. Answer questions directly and cite specific sections from the documents when possible.",
+                "Creative": "You are a creative assistant. Provide engaging, well-structured responses that make the information accessible and interesting."
             }
             
             selected_preset = st.selectbox(
-                "Response Style:",
+                "Choose a preset system prompt:",
                 options=list(preset_prompts.keys()),
-                help="Choose how the AI should respond"
+                help="Select a preset or use 'Default' for no system prompt"
             )
         
         with col2:
-            top_k = st.slider("Document Depth", 1, 10, 5, help="Number of document sections to analyze")
+            if st.button("📝 Use Preset", help="Apply the selected preset to the system prompt field"):
+                st.session_state.system_prompt = preset_prompts[selected_preset]
+                st.rerun()
         
-        # Custom prompt
-        if selected_preset != "Default":
-            system_prompt = preset_prompts[selected_preset]
-            st.info(f"Using: {selected_preset}")
-        else:
-            system_prompt = st.text_area(
-                "Custom Instructions (Optional):",
-                height=80,
-                placeholder="Tell the AI how to respond to your questions..."
-            )
-    
-    # Query execution
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        search_button = st.button("🔍 Search Documents", type="primary", use_container_width=True)
-    
-    if search_button and query.strip():
-        with st.spinner("🧠 Analyzing documents..."):
-            success, response = query_documents(
-                system_info['corpus'], 
-                query.strip(), 
-                top_k=top_k, 
-                system_prompt=system_prompt if system_prompt.strip() else None
-            )
-            
-            if success:
-                st.markdown("""
-                <div class="response-container">
-                    <h3 style="margin-top: 0; color: #28a745;">📋 Response</h3>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                st.markdown(response)
-                
-                # Timestamp
-                st.caption(f"Query executed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        # Initialize system prompt in session state if not exists
+        if 'system_prompt' not in st.session_state:
+            st.session_state.system_prompt = ""
+        
+        # Custom system prompt input
+        system_prompt = st.text_area(
+            "Custom System Prompt:",
+            value=st.session_state.system_prompt,
+            placeholder="Enter your custom system prompt here, or use a preset above...",
+            height=120,
+            help="This prompt will guide how Gemini responds to your queries"
+        )
+        
+        # Update session state when text area changes
+        if system_prompt != st.session_state.system_prompt:
+            st.session_state.system_prompt = system_prompt
+        
+        # Query configuration
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1:
+            top_k = st.slider("Number of relevant chunks", 1, 10, 3, help="How many document chunks to use for context")
+        with col2:
+            st.write("") # Spacer
+        with col3:
+            if st.button("🗑️ Clear Prompt", help="Clear the system prompt"):
+                st.session_state.system_prompt = ""
+                st.rerun()
+        
+        # Query button and results
+        if st.button("🔍 Query Documents", type="primary", use_container_width=True):
+            if query.strip():
+                with st.spinner("🤔 Searching and generating response..."):
+                    # Show what system prompt is being used
+                    if system_prompt.strip():
+                        st.info(f"🎯 **Using System Prompt:** {system_prompt[:100]}{'...' if len(system_prompt) > 100 else ''}")
+                    else:
+                        st.info("🎯 **Using:** Default Gemini behavior (no custom system prompt)")
+                    
+                    success, response = st.session_state.rag_manager.query_documents(query, top_k, system_prompt)
+                    
+                    if success:
+                        st.subheader("📝 Response:")
+                        st.markdown(response)
+                        
+                        # Show query details in expandable section
+                        with st.expander("🔍 Query Details"):
+                            st.write(f"**Question:** {query}")
+                            st.write(f"**Chunks Used:** {top_k}")
+                            st.write(f"**Model:** {st.session_state.rag_manager.generation_model}")
+                            if system_prompt.strip():
+                                st.write(f"**System Prompt:** {system_prompt}")
+                            else:
+                                st.write("**System Prompt:** None (default behavior)")
+                    else:
+                        st.error(f"❌ {response}")
             else:
-                st.error(f"❌ {response}")
+                st.warning("Please enter a question.")
+    else:
+        st.info("Upload documents first to enable querying.")
     
-    elif search_button:
-        st.warning("⚠️ Please enter a question to search.")
-    
-    # Footer info
-    st.markdown(f"""
-    <div class="footer-stats">
-        <strong>📁 Document Source:</strong> {DOCUMENTS_FOLDER}<br>
-        <strong>🤖 AI Model:</strong> {GENERATION_MODEL}<br>
-        <strong>📊 Documents Processed:</strong> {system_info['processed_count']} files
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Show failed files if any (in sidebar)
-    if system_info['failed_files']:
-        with st.sidebar:
-            st.warning(f"⚠️ {len(system_info['failed_files'])} files failed to process")
-            with st.expander("View failed files"):
-                for failed_file in system_info['failed_files']:
-                    st.write(f"• {failed_file}")
+    # Document library
+    if st.session_state.uploaded_files:
+        st.header("📚 Document Library")
+        
+        for i, file_info in enumerate(st.session_state.uploaded_files):
+            with st.expander(f"📄 {file_info['name']}"):
+                st.write(f"**Uploaded:** {file_info['uploaded_at']}")
+                st.write(f"**GCS URI:** `{file_info['gcs_uri']}`")
 
 if __name__ == "__main__":
     main() 

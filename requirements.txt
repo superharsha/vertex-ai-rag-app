@@ -1,12 +1,12 @@
 # Core Streamlit and web framework
-streamlit>=1.35.0
+streamlit>=1.29.0
 toml>=0.10.1
 
 # Google Cloud Libraries - Latest versions
 google-cloud-aiplatform==1.95.1
 google-cloud-storage>=2.10.0
 google-cloud-core>=2.3.0
-google-auth>=2.14.1
+google-auth>=2.23.0
 google-auth-oauthlib>=1.0.0
 google-auth-httplib2>=0.1.0
 google-api-core>=1.34.1
@@ -14,7 +14,7 @@ googleapis-common-protos>=1.56.2
 google-resumable-media>=2.7.2
 
 # Vertex AI - Latest version
-vertexai
+vertexai>=0.0.1
 
 # Document processing
 PyPDF2>=3.0.1
