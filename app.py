@@ -4,6 +4,7 @@ import streamlit as st
 import os
 import json
 import tempfile
+import time
 from datetime import datetime
 
 # Set page config first
@@ -367,6 +368,8 @@ def main():
     
     if search_button and query.strip():
         with st.spinner("🧠 Analyzing documents..."):
+            start_time = time.time()
+            
             if query_method == "Enhanced Generation (Recommended)":
                 success, response = query_documents_enhanced(
                     system_info['corpus_name'], 
@@ -382,6 +385,9 @@ def main():
                     top_k=top_k
                 )
             
+            end_time = time.time()
+            response_time = round((end_time - start_time) * 1000, 3)
+            
             if success:
                 st.markdown("""
                 <div class="response-container">
@@ -391,8 +397,12 @@ def main():
                 
                 st.markdown(response)
                 
-                # Timestamp
-                st.caption(f"Query executed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} using {query_method}")
+                # Timestamp and response time
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.caption(f"Query executed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} using {query_method}")
+                with col2:
+                    st.caption(f"⚡ Response time: {response_time} ms")
             else:
                 st.error(f"❌ {response}")
     
