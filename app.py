@@ -36,6 +36,7 @@ st.markdown("""
     padding: 2rem;
     margin: 2rem 0;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    color: #333333;
 }
 .response-container {
     background: white;
@@ -44,6 +45,7 @@ st.markdown("""
     margin: 1rem 0;
     border-left: 4px solid #28a745;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    color: #333333;
 }
 .status-indicator {
     display: inline-block;
@@ -51,15 +53,16 @@ st.markdown("""
     border-radius: 20px;
     font-weight: bold;
     margin: 0.5rem 0;
+    color: #333333;
 }
 .status-ready {
     background-color: #d4edda;
-    color: #155724;
+    color: #155724 !important;
     border: 1px solid #c3e6cb;
 }
 .status-error {
     background-color: #f8d7da;
-    color: #721c24;
+    color: #721c24 !important;
     border: 1px solid #f5c6cb;
 }
 .footer-stats {
@@ -68,6 +71,34 @@ st.markdown("""
     padding: 1rem;
     margin-top: 2rem;
     text-align: center;
+    color: #333333;
+}
+/* Fix text color in main content */
+.main .block-container {
+    color: #333333;
+}
+/* Fix text color in text areas and inputs */
+.stTextArea > div > div > textarea {
+    color: #333333;
+    background-color: #ffffff;
+}
+.stTextInput > div > div > input {
+    color: #333333;
+    background-color: #ffffff;
+}
+/* Fix selectbox and other components */
+.stSelectbox > div > div > div {
+    color: #333333;
+    background-color: #ffffff;
+}
+/* Fix expander content */
+.streamlit-expanderContent {
+    background-color: #ffffff;
+    color: #333333;
+}
+/* Fix radio buttons */
+.stRadio > div {
+    color: #333333;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -75,15 +106,34 @@ st.markdown("""
 # Constants
 PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT") or "vpc-host-nonprod-kk186-dr143"
 LOCATION = "us-central1"
-GENERATION_MODEL = "gemini-2.0-flash-001"
+
+# Available models
+AVAILABLE_MODELS = {
+    "Gemini 2.0 Flash": "gemini-2.0-flash-001",
+    "Gemini 2.5 Flash Preview": "gemini-2.5-flash-preview-0514"
+}
 
 def setup_google_credentials():
     """Setup Google Cloud credentials for Streamlit Cloud deployment"""
     try:
-        # For Streamlit Cloud: Use Streamlit secrets
-        if hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
-            # Use Streamlit secrets (for cloud deployment)
+        # For local development: Check environment variables FIRST
+        if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+            creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+            expanded_path = os.path.expanduser(creds_path)
+            
+            if os.path.exists(expanded_path):
+                return True, f"Using service account key from: {creds_path}"
+            else:
+                return False, f"Credentials file not found: {expanded_path}"
+        
+        # For Streamlit Cloud: Use Streamlit secrets (only if env vars not set)
+        elif hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
+            # Check if secrets contain real values (not placeholders)
             service_account_info = dict(st.secrets["gcp_service_account"])
+            
+            # Check if it's a placeholder
+            if "your-private-key-id-here" in service_account_info.get("private_key_id", ""):
+                return False, "Streamlit secrets contain placeholder values. Please update with real credentials."
             
             # Write credentials to a temporary file
             with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -92,16 +142,6 @@ def setup_google_credentials():
             
             os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = temp_creds_path
             return True, f"Using Streamlit secrets for authentication"
-        
-        # For local development: Check environment variables
-        elif os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-            creds_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-            expanded_path = os.path.expanduser(creds_path)
-            
-            if os.path.exists(expanded_path):
-                return True, f"Using service account key from: {creds_path}"
-            else:
-                return False, f"Credentials file not found: {expanded_path}"
         
         # Try Application Default Credentials
         else:
@@ -113,7 +153,7 @@ def setup_google_credentials():
             except Exception:
                 pass
         
-        return False, "No valid credentials found. Please configure Streamlit secrets or set GOOGLE_APPLICATION_CREDENTIALS."
+        return False, "No valid credentials found. Please set GOOGLE_APPLICATION_CREDENTIALS environment variable or configure Streamlit secrets."
                 
     except Exception as e:
         return False, f"Failed to setup credentials: {str(e)}"
@@ -180,7 +220,7 @@ def query_documents_direct(corpus_name: str, query: str, top_k: int = 5) -> tupl
     except Exception as e:
         return False, f"Direct retrieval failed: {str(e)}"
 
-def query_documents_enhanced(corpus_name: str, query: str, top_k: int = 5, system_prompt: str = None) -> tuple[bool, str]:
+def query_documents_enhanced(corpus_name: str, query: str, model_name: str, top_k: int = 5, system_prompt: str = None) -> tuple[bool, str]:
     """Enhanced generation following Google documentation exactly"""
     try:
         # RAG retrieval configuration  
@@ -206,13 +246,13 @@ def query_documents_enhanced(corpus_name: str, query: str, top_k: int = 5, syste
         # Create a Gemini model instance with optional system instruction
         if system_prompt and system_prompt.strip():
             rag_model = GenerativeModel(
-                model_name=GENERATION_MODEL, 
+                model_name=model_name, 
                 tools=[rag_retrieval_tool],
                 system_instruction=system_prompt.strip()
             )
         else:
             rag_model = GenerativeModel(
-                model_name=GENERATION_MODEL, 
+                model_name=model_name, 
                 tools=[rag_retrieval_tool]
             )
 
@@ -272,6 +312,14 @@ def main():
         col1, col2 = st.columns([2, 1])
         
         with col1:
+            # Model selection
+            selected_model = st.selectbox(
+                "🤖 AI Model:",
+                options=list(AVAILABLE_MODELS.keys()),
+                index=0,
+                help="Choose which Gemini model to use for generation"
+            )
+            
             preset_prompts = {
                 "Default": "",
                 "📊 Analytical Expert": "You are an analytical expert. Provide detailed, structured responses with clear reasoning and evidence from the documents. Include specific examples and data points when available.",
@@ -323,6 +371,7 @@ def main():
                 success, response = query_documents_enhanced(
                     system_info['corpus_name'], 
                     query.strip(), 
+                    AVAILABLE_MODELS[selected_model], 
                     top_k=top_k, 
                     system_prompt=system_prompt if system_prompt and system_prompt.strip() else None
                 )
@@ -353,7 +402,7 @@ def main():
     # Footer info
     st.markdown(f"""
     <div class="footer-stats">
-        <strong>🤖 AI Model:</strong> {GENERATION_MODEL}<br>
+        <strong>🤖 AI Model:</strong> {selected_model}<br>
         <strong>🧠 Knowledge Base:</strong> {system_info['corpus_name'].split('/')[-1]}<br>
         <strong>🏗️ Status:</strong> Ready for queries<br>
         <strong>📚 Embedding Model:</strong> text-embedding-005<br>
