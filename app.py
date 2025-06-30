@@ -328,7 +328,7 @@ def main():
             )
         
         with col2:
-            top_k = st.slider("Document Depth", 1, 10, 5, help="Number of document sections to analyze")
+            top_k = st.slider("Document Depth", 1, 15, 15, help="Number of document sections to analyze")
         
         # Query method selection
         query_method = st.radio(
