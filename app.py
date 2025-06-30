@@ -17,7 +17,7 @@ st.set_page_config(
 
 # Google Cloud imports
 import vertexai
-from vertexai import rag
+from vertexai.preview import rag
 from vertexai.generative_models import GenerativeModel, Tool
 
 # Custom CSS
@@ -183,7 +183,7 @@ def load_corpus():
         st.stop()
     
     # Use hardcoded corpus name for deployment (since corpus_name.txt may not exist in cloud)
-    corpus_name = "projects/315883473892/locations/us-central1/ragCorpora/2738188573441261568"
+    corpus_name = "projects/315883473892/locations/us-central1/ragCorpora/5148740273991319552"
     
     # Get corpus object
     try:
@@ -201,20 +201,15 @@ def load_corpus():
 def query_documents_direct(corpus_name: str, query: str, top_k: int = 5) -> tuple[bool, str]:
     """Direct context retrieval following Google documentation"""
     try:
-        # Direct context retrieval
-        rag_retrieval_config = rag.RagRetrievalConfig(
-            top_k=top_k,  # Optional
-            filter=rag.Filter(vector_distance_threshold=0.5),  # Optional
-        )
-        
         response = rag.retrieval_query(
+            text=query,
             rag_resources=[
                 rag.RagResource(
                     rag_corpus=corpus_name,
                 )
             ],
-            text=query,
-            rag_retrieval_config=rag_retrieval_config,
+            similarity_top_k=top_k,
+            vector_distance_threshold=0.5,
         )
         
         return True, str(response)
@@ -224,12 +219,6 @@ def query_documents_direct(corpus_name: str, query: str, top_k: int = 5) -> tupl
 def query_documents_enhanced(corpus_name: str, query: str, model_name: str, top_k: int = 5, system_prompt: str = None) -> tuple[bool, str]:
     """Enhanced generation following Google documentation exactly"""
     try:
-        # RAG retrieval configuration  
-        rag_retrieval_config = rag.RagRetrievalConfig(
-            top_k=top_k,  # Optional
-            filter=rag.Filter(vector_distance_threshold=0.5),  # Optional
-        )
-        
         # Create a RAG retrieval tool
         rag_retrieval_tool = Tool.from_retrieval(
             retrieval=rag.Retrieval(
@@ -239,7 +228,8 @@ def query_documents_enhanced(corpus_name: str, query: str, model_name: str, top_
                             rag_corpus=corpus_name,  # Currently only 1 corpus is allowed.
                         )
                     ],
-                    rag_retrieval_config=rag_retrieval_config,
+                    similarity_top_k=top_k,
+                    vector_distance_threshold=0.5,
                 ),
             )
         )
@@ -421,7 +411,7 @@ def main():
         <strong>🧠 Knowledge Base:</strong> {system_info['corpus_name'].split('/')[-1]}<br>
         <strong>🏗️ Status:</strong> Ready for queries<br>
         <strong>📚 Embedding Model:</strong> text-embedding-005<br>
-        <strong>📁 Documents:</strong> 56 files processed
+        <strong>📁 Documents:</strong> 59 files processed
     </div>
     """, unsafe_allow_html=True)
     
@@ -429,7 +419,7 @@ def main():
     with st.sidebar:
         st.markdown("### 🛠️ Knowledge Base Management")
         st.markdown("""
-        This app connects to a pre-built knowledge base containing 56 documents covering:
+        This app connects to a pre-built knowledge base containing 59 documents covering:
         - HealthSync project documentation
         - RFP documents and requirements
         - Business reports and contracts

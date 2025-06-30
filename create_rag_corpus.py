@@ -15,16 +15,16 @@ import glob
 import time
 from datetime import datetime
 import vertexai
-from vertexai import rag
+from vertexai.preview import rag
 from google.cloud import storage
 
 # Configuration
 PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT", "vpc-host-nonprod-kk186-dr143")
 LOCATION = "us-central1"
-DISPLAY_NAME = "document-knowledge-base"
-DOCUMENTS_FOLDER = "/Users/sr/Downloads/All Files"
-BUCKET_NAME = f"{PROJECT_ID}-rag-documents"
-CORPUS_FILE = "corpus_name.txt"
+DISPLAY_NAME = "document-knowledge-base-2"
+DOCUMENTS_FOLDER = "/Users/sr/Downloads/All Files 2"
+BUCKET_NAME = f"{PROJECT_ID}-vertex-rag-docs-2"
+CORPUS_FILE = "corpus_name_2.txt"
 
 def setup_storage_and_upload():
     """Upload files to Google Cloud Storage"""
@@ -90,17 +90,13 @@ def create_rag_corpus(paths):
     corpus_display_name = f"{DISPLAY_NAME}_{timestamp}"
     
     # Configure embedding model, for example "text-embedding-005"
-    embedding_model_config = rag.RagEmbeddingModelConfig(
-        vertex_prediction_endpoint=rag.VertexPredictionEndpoint(
-            publisher_model="publishers/google/models/text-embedding-005"
-        )
+    embedding_model_config = rag.EmbeddingModelConfig(
+        publisher_model="publishers/google/models/text-embedding-005"
     )
 
     rag_corpus = rag.create_corpus(
         display_name=corpus_display_name,
-        backend_config=rag.RagVectorDbConfig(
-            rag_embedding_model_config=embedding_model_config
-        ),
+        embedding_model_config=embedding_model_config,
     )
     
     print(f"✅ Created corpus: {rag_corpus.name}")
@@ -119,15 +115,10 @@ def create_rag_corpus(paths):
         
         try:
             rag.import_files(
-                rag_corpus.name,
-                batch,
-                # Optional
-                transformation_config=rag.TransformationConfig(
-                    chunking_config=rag.ChunkingConfig(
-                        chunk_size=512,
-                        chunk_overlap=100,
-                    ),
-                ),
+                corpus_name=rag_corpus.name,
+                paths=batch,
+                chunk_size=512,
+                chunk_overlap=100,
                 max_embedding_requests_per_min=1000,  # Optional
             )
             total_imported += len(batch)
@@ -155,20 +146,15 @@ def test_retrieval(rag_corpus):
     """Test direct context retrieval"""
     print("🔍 Testing retrieval...")
     
-    # Direct context retrieval
-    rag_retrieval_config = rag.RagRetrievalConfig(
-        top_k=3,  # Optional
-        filter=rag.Filter(vector_distance_threshold=0.5),  # Optional
-    )
-    
     response = rag.retrieval_query(
+        text="What are the key topics in these documents?",
         rag_resources=[
             rag.RagResource(
                 rag_corpus=rag_corpus.name,
             )
         ],
-        text="What are the key topics in these documents?",
-        rag_retrieval_config=rag_retrieval_config,
+        similarity_top_k=3,
+        vector_distance_threshold=0.5,
     )
     
     print("📋 Test retrieval response:")

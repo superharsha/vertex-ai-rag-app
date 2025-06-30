@@ -96,7 +96,7 @@ class VertexAIRAGManager:
             self.project_id = project_id
             self.location = location
             self.generation_model = generation_model
-            self.bucket_name = f"{project_id}-vertex-rag-docs"
+            self.bucket_name = f"{project_id}-vertex-rag-docs-2"
             
             # Initialize Vertex AI
             vertexai.init(project=project_id, location=location)
