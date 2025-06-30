@@ -411,7 +411,7 @@ def main():
         <strong>🧠 Knowledge Base:</strong> {system_info['corpus_name'].split('/')[-1]}<br>
         <strong>🏗️ Status:</strong> Ready for queries<br>
         <strong>📚 Embedding Model:</strong> text-embedding-005<br>
-        <strong>📁 Documents:</strong> 59 files processed
+        <strong>📁 Documents:</strong> 66 files processed
     </div>
     """, unsafe_allow_html=True)
     
@@ -419,11 +419,12 @@ def main():
     with st.sidebar:
         st.markdown("### 🛠️ Knowledge Base Management")
         st.markdown("""
-        This app connects to a pre-built knowledge base containing 59 documents covering:
+        This app connects to a pre-built knowledge base containing 66 documents covering:
         - HealthSync project documentation
         - RFP documents and requirements
         - Business reports and contracts
         - Technical specifications
+        - Hispanic Market Excellence Initiative
         """)
         
         st.markdown("### 📊 System Info")
@@ -441,6 +442,7 @@ def main():
         st.markdown("### 💡 Sample Queries")
         st.markdown("""
         - "What are the key requirements in the HealthSync project?"
+        - "Tell me about the Hispanic Market Excellence Initiative"
         - "Summarize financial information about Valenbridge Global"
         - "What are the main risks across all projects?"
         - "Show me technical specifications from RFP documents"
